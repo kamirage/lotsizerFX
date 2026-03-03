@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23000'/><text x='50' y='75' text-anchor='middle' font-size='80' font-family='Consolas, monospace' font-weight='bold' fill='%233b82f6'>$</text></svg>">
+<title>FundingPips Risk Tool MT5</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+#canvas-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+
+.app {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 430px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 22px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 90px rgba(0, 0, 0, 0.9);
+  color: #e5e7eb;
+  z-index: 2;
+  max-height: 95vh;
+  overflow-y: auto;
+}
+
+/* Мобильная адаптация */
+@media (max-width: 480px) {
+  .app {
+    width: 95%;
+    padding: 16px;
+    border-radius: 16px;
+    transform: translate(-50%, -50%) scale(0.95);
+    max-height: 90vh;
+  }
+  
+  h1 {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+  
+  input, select {
+    padding: 14px;
+    font-size: 14px;
+  }
+  
+  .lot {
+    font-size: 32px;
+  }
+  
+  .result {
+    padding: 12px;
+  }
+  
+  .quick-actions {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  
+  .quick-btn {
+    padding: 6px;
+    font-size: 11px;
+  }
+  
+  .risk-selector {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .risk-btn {
+    padding: 10px 8px;
+    font-size: 11px;
+  }
+}
+
+h1 {
+  text-align: center;
+  font-size: 18px;
+  margin-bottom: 16px;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+label {
+  font-size: 11px;
+  color: #9ca3af;
+  display: block;
+  margin-top: 12px;
+  font-weight: 500;
+}
+
+input, select {
+  width: 100%;
+  margin-top: 6px;
+  padding: 11px;
+  background: #000;
+  border: 1px solid #1f2937;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+input:focus, select:focus {
+  outline: 2px solid #3b82f6;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* Кнопки быстрого доступа */
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.quick-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px;
+  text-align: center;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #e5e7eb;
+  font-weight: 500;
+}
+
+.quick-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.quick-btn:active {
+  transform: translateY(0);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Селектор риска */
+.risk-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.risk-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px 8px;
+  text-align: center;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #e5e7eb;
+  font-weight: 600;
+}
+
+.risk-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.risk-btn:active {
+  transform: translateY(0);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.risk-btn.active {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border-color: #3b82f6;
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+/* Результат */
+.result {
+  margin-top: 18px;
+  padding: 16px;
+  background: #000;
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.result:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.lot {
+  font-size: 36px;
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.ok { color: #22c55e; }
+.small { 
+  font-size: 12px; 
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+/* История */
+.history-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.2s;
+}
+
+.history-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Анимация появления */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.app {
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* Скроллбар */
+.app::-webkit-scrollbar {
+  width: 6px;
+}
+
+.app::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.app::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.app::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="canvas-bg"></canvas>
+
+<div class="app">
+  <h1>FUNDINGPIPS MT5 RISK CALCULATOR</h1>
+
+  <label>Баланс</label>
+  <select id="balance" autocomplete="off">
+    <option value="5000">5 000 $</option>
+    <option value="10000">10 000 $</option>
+    <option value="25000">25 000 $</option>
+    <option value="50000">50 000 $</option>
+    <option value="100000">100 000 $</option>
+    <option value="200000">200 000 $</option>
+  </select>
+
+  <label>Риск %</label>
+  <div class="risk-selector">
+    <div class="risk-btn active" onclick="setRisk(0.3)">0.3%</div>
+    <div class="risk-btn" onclick="setRisk(0.5)">0.5%</div>
+    <div class="risk-btn" onclick="setRisk(1)">1%</div>
+  </div>
+  <input id="risk" type="number" value="0.3" step="0.1" min="0.1" max="10" placeholder="Или введите свой" autocomplete="new-password">
+
+  <label>Актив</label>
+  <select id="asset" autocomplete="off">
+    <optgroup label="FOREX">
+      <option>EURUSD</option><option>GBPUSD</option><option>USDJPY</option>
+      <option>USDCAD</option><option>AUDUSD</option><option>NZDUSD</option>
+      <option>USDCHF</option><option>EURJPY</option><option>GBPJPY</option>
+    </optgroup>
+    <optgroup label="INDICES"><option>GER40</option></optgroup><option>US100</option>
+    <optgroup label="METALS"><option>XAUUSD</option><option>XAGUSD</option></optgroup>
+    <optgroup label="CRYPTO"><option>ETHUSD</option></optgroup>
+  </select>
+
+  <label>Entry</label>
+  <input id="entry" type="number" step="any" placeholder="Цена входа" autocomplete="new-password">
+
+  <label>Stop Loss</label>
+  <input id="stop" type="number" step="any" placeholder="Цена стопа" autocomplete="new-password">
+
+  <label>Take Profit (необязательно)</label>
+  <input id="tp" type="number" step="any" placeholder="Цена тейка" autocomplete="new-password">
+
+  <!-- Кнопки быстрого доступа - ТОЛЬКО ВЫБОР АКТИВА -->
+  <div class="quick-actions">
+    <div class="quick-btn" onclick="selectAsset('EURUSD')">EURUSD</div>
+    <div class="quick-btn" onclick="selectAsset('XAUUSD')">XAUUSD</div>
+    <div class="quick-btn" onclick="selectAsset('GER40')">GER40</div>
+    <div class="quick-btn" onclick="selectAsset('ETHUSD')">ETHUSD</div>
+  </div>
+
+  <div id="out" class="result">
+    <div class="small">Введите Entry и Stop Loss</div>
+  </div>
+  
+  <button class="history-btn" onclick="showHistory()">🕒 История расчетов</button>
+</div>
+
+<script>
+/* ===== TESLA LIGHTNING BACKGROUND ===== */
+class LightningEffect {
+  constructor(c) {
+    this.c = c;
+    this.ctx = c.getContext("2d");
+    this.w = innerWidth;
+    this.h = innerHeight;
+    this.m = { x: this.w / 2, y: this.h / 2 };
+    this.p = [];
+    this.init();
+    this.loop();
+    
+    addEventListener("mousemove", e => {
+      this.m.x = e.clientX;
+      this.m.y = e.clientY;
+    });
+    
+    addEventListener("touchmove", e => {
+      if (e.touches.length > 0) {
+        this.m.x = e.touches[0].clientX;
+        this.m.y = e.touches[0].clientY;
+      }
+    });
+    
+    addEventListener("resize", () => this.resize());
+  }
+  
+  init() {
+    this.resize();
+    for (let i = 0; i < 120; i++)
+      this.p.push({ x: Math.random() * this.w, y: Math.random() * this.h });
+  }
+  
+  resize() {
+    this.w = innerWidth;
+    this.h = innerHeight;
+    this.c.width = this.w;
+    this.c.height = this.h;
+  }
+  
+  loop() {
+    this.ctx.fillStyle = "rgba(0,0,0,.25)";
+    this.ctx.fillRect(0, 0, this.w, this.h);
+    
+    for (let a of this.p) {
+      const d = Math.hypot(a.x - this.m.x, a.y - this.m.y);
+      if (d < 180) {
+        this.ctx.strokeStyle = "rgba(255,255,255,.5)";
+        this.ctx.beginPath();
+        this.ctx.moveTo(a.x, a.y);
+        this.ctx.lineTo(this.m.x, this.m.y);
+        this.ctx.stroke();
+      }
+      this.ctx.fillStyle = "#fff";
+      this.ctx.fillRect(a.x, a.y, 1, 1);
+    }
+    
+    requestAnimationFrame(() => this.loop());
+  }
+}
+
+new LightningEffect(document.getElementById("canvas-bg"));
+
+// ===== SAVE / LOAD LAST SETTINGS =====
+const assetSelect = document.getElementById("asset");
+const balanceSelect = document.getElementById("balance");
+const riskInput = document.getElementById("risk");
+const entryInput = document.getElementById("entry");
+const stopInput = document.getElementById("stop");
+const tpInput = document.getElementById("tp");
+
+// Загрузка сохраненных значений (ТОЛЬКО для баланса, риска и актива)
+const savedAsset = localStorage.getItem("lastAsset");
+const savedBalance = localStorage.getItem("lastBalance");
+const savedRisk = localStorage.getItem("lastRisk");
+
+if (savedAsset) assetSelect.value = savedAsset;
+if (savedBalance) balanceSelect.value = savedBalance;
+if (savedRisk) {
+  riskInput.value = savedRisk;
+  updateRiskButtons(savedRisk);
+}
+
+// Очищаем поля ввода ПОСЛЕ загрузки сохраненных настроек
+entryInput.value = "";
+stopInput.value = "";
+tpInput.value = "";
+
+// Событие при смене актива - ОЧИЩАЕМ ПОЛЯ
+assetSelect.addEventListener("change", () => {
+  localStorage.setItem("lastAsset", assetSelect.value);
+  // Очищаем поля при смене актива
+  entryInput.value = "";
+  stopInput.value = "";
+  tpInput.value = "";
+  calc();
+});
+
+balanceSelect.addEventListener("change", () => {
+  localStorage.setItem("lastBalance", balanceSelect.value);
+  calc();
+});
+
+riskInput.addEventListener("input", () => {
+  const value = parseFloat(riskInput.value);
+  if (value >= 0.1 && value <= 10) {
+    localStorage.setItem("lastRisk", value);
+    updateRiskButtons(value);
+    calc();
+  }
+});
+
+// Обновление кнопок риска
+function updateRiskButtons(value) {
+  const buttons = document.querySelectorAll('.risk-btn');
+  buttons.forEach(btn => btn.classList.remove('active'));
+  
+  const matchingBtn = Array.from(buttons).find(btn => 
+    parseFloat(btn.textContent) === value
+  );
+  
+  if (matchingBtn) {
+    matchingBtn.classList.add('active');
+  }
+}
+
+/* ===== SELECT ASSET FUNCTIONS - БЕЗ АВТОЗАПОЛНЕНИЯ ===== */
+function selectAsset(pair) {
+  const asset = document.getElementById("asset");
+  
+  asset.value = pair;
+  localStorage.setItem("lastAsset", pair);
+  
+  // Очищаем поля - НИКАКОГО АВТОЗАПОЛНЕНИЯ!
+  entryInput.value = "";
+  stopInput.value = "";
+  tpInput.value = "";
+  
+  calc();
+}
+
+function setRisk(risk) {
+  riskInput.value = risk;
+  localStorage.setItem("lastRisk", risk);
+  
+  // Обновляем активную кнопку
+  const buttons = document.querySelectorAll('.risk-btn');
+  buttons.forEach(btn => btn.classList.remove('active'));
+  
+  event.target.classList.add('active');
+  
+  calc();
+}
+
+/* ===== CALCULATION LOGIC WITH DEBOUNCE ===== */
+const ids = ["balance", "risk", "asset", "entry", "stop", "tp"];
+let calcTimeout;
+
+function debouncedCalc() {
+  clearTimeout(calcTimeout);
+  calcTimeout = setTimeout(calc, 300);
+}
+
+// Подключаем события (кроме риска, который уже обрабатывается)
+["balance", "asset", "entry", "stop", "tp"].forEach(id => {
+  document.getElementById(id).addEventListener("input", debouncedCalc);
+  document.getElementById(id).addEventListener("change", calc);
+});
+
+// ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ РАСЧЁТА (НОВЫЕ) =====
+
+function getPipSize(asset) {
+  if (asset.includes('JPY')) return 0.01;
+  if (['XAUUSD', 'XAGUSD', 'GER40', 'ETHUSD'].includes(asset)) return 1;
+  return 0.0001;
+}
+
+function getPipValue(asset, price) {
+  // Прямые пары (USD второй)
+  if (['EURUSD', 'GBPUSD', 'AUDUSD', 'NZDUSD'].includes(asset)) return 10;
+  // Обратные пары (USD первый) — КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ
+  if (['USDCAD', 'USDCHF'].includes(asset)) return 10 / price;
+  // JPY пары
+  if (['USDJPY', 'EURJPY', 'GBPJPY'].includes(asset)) return 1000 / price;
+  // Остальные
+  if (asset === 'XAUUSD') return 100;
+  if (asset === 'XAGUSD') return 5000;
+  if (asset === 'GER40') return 25;
+  if (asset === 'ETHUSD') return 1;
+  return 10;
+}
+
+function getContractSize(asset) {
+  if (['EURUSD','GBPUSD','USDCAD','USDCHF','USDJPY','EURJPY','GBPJPY','AUDUSD','NZDUSD'].includes(asset)) return 100000;
+  if (asset === 'XAUUSD') return 100;
+  if (asset === 'XAGUSD') return 5000;
+  if (asset === 'GER40') return 25;
+  if (asset === 'ETHUSD') return 1;
+  return 100000;
+}
+
+// ===== ОБНОВЛЁННАЯ ФУНКЦИЯ calc() =====
+
+function calc() {
+  const out = document.getElementById("out");
+  const bal = +document.getElementById("balance").value;
+  const riskP = +document.getElementById("risk").value;
+  const e = +document.getElementById("entry").value;
+  const s = +document.getElementById("stop").value;
+  const tpv = +document.getElementById("tp").value;
+  const a = document.getElementById("asset").value;
+
+  // Валидация
+  if (riskP < 0.1 || riskP > 10) {
+    out.innerHTML = "<div class='small' style='color:#ef4444'>Риск должен быть от 0.1% до 10%</div>";
+    return;
+  }
+
+  const riskUsd = bal * (riskP / 100);
+
+  if (!e || !s || e === s) {
+    out.innerHTML = "<div class='small'>Введите Entry и Stop Loss</div>";
+    return;
+  }
+
+  // ===== НОВАЯ ЛОГИКА РАСЧЁТА =====
+  const distance = Math.abs(e - s);
+  const pipSize = getPipSize(a);
+  const stopPips = distance / pipSize;
+  const pipValue = getPipValue(a, e); // ← динамический расчёт!
+  
+  // Основная формула: Lot = Risk / (StopPips × PipValue)
+  const lot = Math.floor((riskUsd / (stopPips * pipValue)) * 100) / 100;
+
+  // Расчёт стоимости позиции
+  const contractSize = getContractSize(a);
+  let posUsd = 0;
+  
+  if (['EURUSD','GBPUSD','AUDUSD','NZDUSD','USDCAD','USDCHF'].includes(a)) {
+    posUsd = lot * contractSize * e;
+  } else if (['USDJPY','EURJPY','GBPJPY'].includes(a)) {
+    posUsd = lot * contractSize;
+  } else if (a === 'XAUUSD') {
+    posUsd = lot * 100 * e;
+  } else if (a === 'XAGUSD') {
+    posUsd = lot * 5000 * e;
+  } else if (a === 'GER40') {
+    posUsd = lot * 25 * e;
+  } else if (a === 'ETHUSD') {
+    posUsd = lot * e;
+  }
+
+  // R:R и прибыль
+  let rrHTML = "";
+  if (tpv) {
+    const tpPips = Math.abs(tpv - e) / pipSize;
+    const rr = (tpPips / stopPips).toFixed(2);
+    const profit = riskUsd * tpPips / stopPips;
+    rrHTML = `
+      <div class="small">RR 1:${rr}</div>
+      <div class="small">Potential Profit $${Math.round(profit).toLocaleString()}</div>
+    `;
+  }
+
+  // Вывод результата (твой формат)
+  out.innerHTML = `
+    <div class="lot ok">${lot.toFixed(2)}</div>
+    <div class="small">LOT SIZE</div>
+    <div class="small">Position $${Math.round(posUsd).toLocaleString()}</div>
+    <div class="small">Risk $${Math.round(riskUsd).toLocaleString()}</div>
+    ${rrHTML}
+  `;
+  
+  saveHistory(lot.toFixed(2));
+}
+
+// Инициализация - очищаем поля при загрузке страницы
+window.addEventListener('load', () => {
+  // Убеждаемся, что поля пустые
+  entryInput.value = "";
+  stopInput.value = "";
+  tpInput.value = "";
+  
+  // Автофокус только на десктопе
+  if (!/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+    setTimeout(() => {
+      entryInput.focus();
+    }, 500);
+  }
+  
+  // Дополнительная очистка через короткую задержку
+  setTimeout(() => {
+    entryInput.value = "";
+    stopInput.value = "";
+    tpInput.value = "";
+  }, 100);
+});
+
+/* ===== HISTORY FUNCTIONS ===== */
+function saveHistory(lot) {
+  const entry = entryInput.value;
+  const stop = stopInput.value;
+  const asset = assetSelect.value;
+  const risk = riskInput.value;
+  
+  if (!entry || !stop || !lot) return;
+  
+  const history = JSON.parse(localStorage.getItem("calcHistory") || "[]");
+  
+  const newItem = {
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    asset: asset,
+    entry: entry,
+    stop: stop,
+    lot: lot,
+    risk: risk
+  };
+  
+  // Проверяем, не дублируется ли запись
+  const isDuplicate = history.some(item => 
+    item.entry === newItem.entry && 
+    item.stop === newItem.stop && 
+    item.lot === newItem.lot
+  );
+  
+  if (!isDuplicate) {
+    history.unshift(newItem);
+    if (history.length > 10) history.pop();
+    localStorage.setItem("calcHistory", JSON.stringify(history));
+  }
+}
+
+function showHistory() {
+  const history = JSON.parse(localStorage.getItem("calcHistory") || "[]");
+  
+  if (history.length === 0) {
+    alert("История пуста. Сделайте первый расчет!");
+    return;
+  }
+  
+  let message = "📅 Последние расчеты:\n\n";
+  
+  history.forEach((item, index) => {
+    message += `${index + 1}. ${item.time} | ${item.asset} | ${item.risk}%\n`;
+    message += `   ${item.entry} → ${item.stop}\n`;
+    message += `   Lot: ${item.lot}\n\n`;
+  });
+  
+  alert(message);
+}
+
+/* ===== MOBILE OPTIMIZATIONS ===== */
+// Запрет масштабирования на мобильных
+document.addEventListener('touchmove', function(event) {
+  if (event.scale !== 1) {
+    event.preventDefault();
+  }
+}, { passive: false });
+
+// Предотвращение случайного закрытия клавиатуры
+document.querySelectorAll('input').forEach(input => {
+  input.addEventListener('focus', function() {
+    this.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+});
+</script>
+
+</body>
+</html>
